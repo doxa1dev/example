@@ -1,0 +1,117 @@
+Install nginx: https://www.youtube.com/watch?v=leCZ7htfB_g
+-  sudo yum update
+- sudo nano /etc/yum.repos.d/nginx.repo
+  add to file :
+[nginx]
+name=nginx repo
+baseurl=https://nginx.org/packages/centos/7/$basearch/
+gpgcheck=0
+enabled=1
+- sudo yum update
+- sudo yum install nginx
+- sudo service nginx start
+- curl localhost:80
+- link : 54.255.238.48
+-------------------------------
+Install git : 
+- sudo yum install git
+- git --version
+------------------------------
+Install node & npm
+- curl -sL https://rpm.nodesource.com/setup_14.x | sudo -E bash - 
+- sudo yum install nodejs
+- node --version
+- npm --version
+-----------------------------
+Uninstall nodejs
+sudo rm -rf /var/cache/yum
+sudo yum remove -y nodejs
+sudo rm /etc/yum.repos.d/nodesource*
+sudo yum clean all
+-----------------------
+Install Angular
+- sudo npm install -g @angular/cli@9.0.4
+- (fix error run out of memory) https://stackoverflow.com/questions/58916119/ineffective-mark-compacts-near-heap-limit-allocation-angular-8-javascript-heap
+
+-------------------------
+Install jenkins: https://www.youtube.com/watch?v=v7tLaDJ-uqg&list=PLjCpH2Qpki-vDvSxypCxOgfjuVHaXxcaa&index=2
+1. EC2 installation
+2. Java installation
+$ yum install -y java-1.8.0-openjdk-devel.x86_64
+$ alternatives --config java -> input 1 -> enter
+$ java -version
+
+3. Jenkins install
+$ wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat/jenkins.repo
+$ rpm --import https://pkg.jenkins.io/redhat/jenkins.io.key
+$ yum install -y jenkins
+
+4. Start Jenkins
+$ systemctl start jenkins
+
+5. Setting password
+$ less /var/lib/jenkins/secrets/initialAdminPassword
+6. login
+user : admin
+pass : admin
+7. http://54.169.68.172:8080/
+----------------------------
+Config jenkins auto deploy
+ssh -T -i /home/jenkins/web-server.pem -o StrictHostKeyChecking=no ec2-user@172.31.27.227 << EOF
+cd /usr/share/resource/example/
+sudo git pull origin master
+sudo npm i
+sudo rm -rf dist
+sudo ng build
+EOF
+
+---------------------------------
+Config nginx and domain
+Check domain : https://intodns.com/
+Check domain mapping ip : cmd : nslookup ari-online.tk or nslookup -type=ns ari-online.tk
+--------------------------------
+Config ssl: https://www.youtube.com/watch?v=ciFW75XtUOc&t=96s
+Step1: Cài đặt mod ssl cho Apache
+yum -y install mod_ssl
+
+Step2:Cài đặt Cài đặt openssl
+yum install openssl
+
+Step3: Tạo private key
+mkdir -p /etc/httpd/conf/tinhocthatladongian-ssl
+cd /etc/httpd/conf/tinhocthatladongian-ssl
+openssl genrsa } server.key
+
+Step4: Tiếp theo, tạo file CSR, file CSR này được sử dụng khi cơ quan cấp chứng chỉ cấp chứng chỉ cho máy chủ
+openssl req -new -key server.key } server.csr
+
+Step5: Gửi file server.csr ở trên cho nhà cung cấp SSL(nơi bạn muốn mua SSL) bạn sẽ nhận được các file cerfiticate
+ví dụn mình dùng sslforfree để thực hành bài này
+
+Step6: Copy các file cerfiticate nhận được vào thư mục /etc/httpd/conf/tinhocthatladongian-ssl và change quyền cho các file này
+chown root:root  ca_bundle.crt
+chown root:root  certificate.crt
+chmod 600  ca_bundle.crt chown 600  certificate.crt
+
+
+Step7: Cấu hình apache
+{VirtualHost _default_:443}
+    SSLEngine On
+    ServerAdmin info@coderhanoi.com
+    DocumentRoot "/var/www/html/tinhocthatladongian/"
+    ServerName coderhanoi.com
+    SSLCertificateFile "/etc/httpd/conf/tinhocthatladongian-ssl/certificate.crt"
+    SSLCertificateChainFile "/etc/httpd/conf/tinhocthatladongian-ssl/ca_bundle.crt"
+    SSLCertificateKeyFile "/etc/httpd/conf/tinhocthatladongian-ssl/server.key"
+    {Directory "/var/www/html/tinhocthatladongian/"}        
+ Order deny,allow        
+ Allow from all        
+ AllowOverride All        
+ Require all granted
+   {/Directory}
+{/VirtualHost}
+
+Step:  Khởi động lại apache
+service restart httpd
+
+Step9:  Mở cổng 443 cho ssl trên firewall
